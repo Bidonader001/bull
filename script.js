@@ -8,6 +8,10 @@ const message = document.querySelector("#form-message");
 const button = document.querySelector("#submit-button");
 const RECIPIENTS = ["bido.nader@gmail.com", "bunker@makasibea.com"];
 
+ageInput.addEventListener("input", () => {
+  ageInput.setCustomValidity(ageInput.value && Number(ageInput.value) < 7 ? "The minimum age to participate is 7." : "");
+});
+
 function updateMinorFields() {
   const isMinor = Number(ageInput.value) > 0 && Number(ageInput.value) < 18;
   guardianNote.hidden = !isMinor;
