@@ -12,4 +12,4 @@ Submissions are sent to `bido.nader@gmail.com` and `bunker@makasibea.com` throug
 2. In Vercel, import the repository. Choose **Other** as the framework preset; no build command or output directory is needed.
 3. Add the environment variables above and deploy. Redeploy after changing environment variables.
 
-The form asks for name, age, phone number, waiver acceptance, and—when age is under 18—parent/guardian consent.
+The form asks for name, age, phone number, waiver acceptance, and—when age is under 12—parent/guardian consent.

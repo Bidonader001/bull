@@ -13,7 +13,7 @@ ageInput.addEventListener("input", () => {
 });
 
 function updateMinorFields() {
-  const isMinor = Number(ageInput.value) > 0 && Number(ageInput.value) < 18;
+  const isMinor = Number(ageInput.value) > 0 && Number(ageInput.value) < 12;
   guardianNote.hidden = !isMinor;
   guardianConsent.hidden = !isMinor;
   guardianInput.required = isMinor;
