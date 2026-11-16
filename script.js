@@ -1,4 +1,3 @@
-
 const form = document.querySelector("#waiver-form");
 const ageInput = form.elements.age;
 const guardianNote = document.querySelector("#guardian-note");
@@ -8,10 +7,19 @@ const acceptedInput = form.elements.accepted;
 const message = document.querySelector("#form-message");
 const button = document.querySelector("#submit-button");
 
-const RECIPIENTS = [
-  "bido.nader@gmail.com",
-  "bunker@makasibea.com"
-];
+// Optional: add <span id="button-label">Submit waiver</span> inside the button.
+// If it doesn't exist, we fall back to the button's first text node.
+const buttonLabel = document.querySelector("#button-label");
+const labelTarget = buttonLabel || button.firstChild;
+const defaultLabel = labelTarget ? labelTarget.textContent : "Submit waiver ";
+
+function setButtonLabel(text) {
+  if (labelTarget) labelTarget.textContent = text;
+}
+
+// FormSubmit: first address receives the form, second one gets a copy (_cc)
+const PRIMARY_RECIPIENT = "bido.nader@gmail.com";
+const CC_RECIPIENT = "bunker@makasibea.com";
 
 let isSubmitting = false;
 
@@ -71,7 +79,6 @@ form.addEventListener("submit", async (event) => {
   if (!acceptedInput.checked) {
     message.textContent =
       "Please accept the waiver terms before submitting.";
-
     acceptedInput.focus();
     return;
   }
@@ -79,9 +86,7 @@ form.addEventListener("submit", async (event) => {
   // Validate all required fields
   if (!form.reportValidity()) return;
 
-  const data = Object.fromEntries(
-    new FormData(form).entries()
-  );
+  const data = Object.fromEntries(new FormData(form).entries());
 
   data.age = Number(data.age);
   data.accepted = acceptedInput.checked;
@@ -90,12 +95,13 @@ form.addEventListener("submit", async (event) => {
   // Lock submission button
   isSubmitting = true;
   button.disabled = true;
-  button.firstChild.textContent = "Submitting… ";
+  setButtonLabel("Submitting… ");
 
   const payload = {
     _subject: "Bunker Arcade — Mechanical Bull Waiver",
     _template: "table",
     _captcha: "false",
+    _cc: CC_RECIPIENT,
 
     name: data.name.trim(),
     age: data.age,
@@ -103,8 +109,7 @@ form.addEventListener("submit", async (event) => {
 
     waiverAccepted: data.accepted ? "Yes" : "No",
 
-    parentOrGuardianConsent:
-      data.guardian ? "Yes" : "No",
+    parentOrGuardianConsent: data.guardian ? "Yes" : "No",
 
     safetyGear: form.elements.safetyGear.checked
       ? "Participant chose to wear the provided safety gear"
@@ -115,92 +120,55 @@ form.addEventListener("submit", async (event) => {
 
   // Timeout after 20 seconds
   const controller = new AbortController();
-
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, 20000);
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
 
   try {
-    // Send to both recipients
-    const results = await Promise.allSettled(
-      RECIPIENTS.map(async (email) => {
-        const response = await fetch(
-          `https://formsubmit.co/ajax/${email}`,
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json"
-            },
-
-            body: JSON.stringify(payload),
-
-            signal: controller.signal
-          }
-        );
-
-        const result = await response.json().catch(() => ({}));
-
-        if (
-          !response.ok ||
-          result.success === false ||
-          result.success === "false"
-        ) {
-          throw new Error(
-            result.message || `Failed to send to ${email}`
-          );
-        }
-
-        return email;
-      })
+    // One request, with the second recipient in CC
+    const response = await fetch(
+      `https://formsubmit.co/ajax/${PRIMARY_RECIPIENT}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      }
     );
 
-    // Check delivery results
-    const successful = results.filter(
-      result => result.status === "fulfilled"
-    );
+    const result = await response.json().catch(() => ({}));
 
-    const failed = results.filter(
-      result => result.status === "rejected"
-    );
+    // Debug: check the browser console to see what FormSubmit returned
+    console.log("FormSubmit response:", response.status, result);
 
-    if (successful.length === RECIPIENTS.length) {
-      message.textContent =
-        "Waiver submitted successfully! Thank you.";
-
-      message.classList.add("success");
-
-      form.reset();
-
-      updateMinorFields();
-
-    } else if (successful.length > 0) {
-      message.textContent =
-        "Your waiver was only partially delivered. Please contact staff before submitting again.";
-
-    } else {
-      throw failed[0].reason ||
-        new Error("Could not submit the waiver.");
+    if (!response.ok || String(result.success) !== "true") {
+      throw new Error(
+        result.message || "Could not submit the waiver. Please contact staff."
+      );
     }
 
+    message.textContent = "Waiver submitted successfully! Thank you.";
+    message.classList.add("success");
+
+    form.reset();
+    updateMinorFields();
+
   } catch (error) {
+    console.error("Waiver submit error:", error);
+
     if (error.name === "AbortError") {
       message.textContent =
         "Submission timed out. Please check your connection and contact staff before retrying.";
     } else {
       message.textContent =
-        error.message ||
-        "Something went wrong. Please try again.";
+        error.message || "Something went wrong. Please try again.";
     }
 
   } finally {
     clearTimeout(timeoutId);
-
     isSubmitting = false;
-
-    button.firstChild.textContent = "Submit waiver ";
-
+    setButtonLabel(defaultLabel);
     updateSubmitState();
   }
 });
